@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+.ledger_cache.sqlite3
+*.egg-info/
+.ledger_institutions.json
