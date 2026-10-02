@@ -1,0 +1,7 @@
+Screen {
+    background: $surface;
+}
+
+DataTable {
+    height: 1fr;
+}

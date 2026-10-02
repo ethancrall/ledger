@@ -1,0 +1,94 @@
+# Example Ledger config — anything you'd have typed into a yellow cell on the
+# spreadsheet goes here instead. Add/remove entries freely; Ledger reads
+# this file fresh on every refresh.
+
+tracker_start_date: 2026-01-01
+
+categories:
+  # type must be one of: spend, offset, income, transfer
+  - { name: Groceries,       type: spend }
+  - { name: Eating Out,      type: spend }
+  - { name: Fuel,            type: spend }
+  - { name: Housing,         type: spend }
+  - { name: Electric,        type: spend }
+  - { name: Natural Gas,     type: spend }
+  - { name: Water,           type: spend }
+  - { name: Internet,        type: spend }
+  - { name: Phone,           type: spend }
+  - { name: Insurance,       type: spend }
+  - { name: Medical,         type: spend }
+  - { name: Subscriptions,   type: spend }
+  - { name: Entertainment,   type: spend }
+  - { name: Shopping,        type: spend }
+  - { name: Travel,          type: spend }
+  - { name: Transport,       type: spend }
+  - { name: Parking,         type: spend }
+  - { name: Fitness,         type: spend }
+  - { name: Gifts,           type: spend }
+  - { name: Education,       type: spend }
+  - { name: Other,           type: spend }
+  - { name: Refund,          type: offset }
+  - { name: Reimbursement,   type: offset }
+  - { name: Salary,          type: income }
+  - { name: Interest,        type: income }
+  - { name: Bonus,           type: income }
+  - { name: CC Payment,      type: transfer }
+  - { name: Cash Withdrawal, type: transfer }
+  - { name: Loan Payment,    type: transfer }
+  - { name: IRA Contribution, type: transfer }
+  - { name: HSA Contribution, type: transfer }
+  - { name: Prior Balance,   type: transfer }
+
+# Accounts NOT linked through Plaid (cash, investments, loans). Plaid-linked
+# accounts (Amex, Capital One, Truist) are discovered automatically and
+# don't need an entry here.
+manual_accounts:
+  - name: Cash
+    kind: cash
+    starting_balance: 0
+    current_balance: 0
+
+  - name: HSA
+    kind: investment
+    starting_balance: 0
+    current_balance: 0
+
+  - name: Roth IRA
+    kind: investment
+    starting_balance: 0
+    current_balance: 0
+
+  - name: Roth 401(k)
+    kind: investment
+    starting_balance: 0
+    current_balance: 0
+
+  - name: Loan 1
+    kind: loan
+    starting_balance: -12000
+    current_balance: 0
+    interest_rate: 0.0649
+    interest_starts: 2026-01-01
+    payoff_order: 1
+
+payroll:
+  deferral_rate_401k: 0.06
+  match_tier_1_rate: 1.00      # 100% of the first tier
+  match_tier_1_pct: 0.03       # first 3% of pay
+  match_tier_2_rate: 0.50      # 50% of the second tier
+  match_tier_2_pct: 0.02       # next 2% of pay
+  expected_net_pay_per_period: 2000.00
+
+forecast:
+  minimum_cash_buffer: 500.00
+  hsa_cash_floor: 0.00
+
+contribution_limits:
+  - tax_year: 2026
+    roth_ira_limit: 7500
+    roth_401k_limit: 24500
+    hsa_limit: 4400
+    tax_filing_deadline: 2027-04-15
+  - tax_year: 2027
+    hsa_limit: 4500
+    tax_filing_deadline: 2028-04-17
