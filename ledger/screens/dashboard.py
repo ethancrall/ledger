@@ -6,12 +6,14 @@ from ledger.budget_config import load_budget_config
 from ledger.plaid_client.accounts import fetch_all_balances
 from ledger.plaid_client.transactions import detect_paychecks, fetch_recent_transactions
 from ledger.screens.accounts_view import AccountsView
+from ledger.screens.summary_view import SummaryView
 from ledger.screens.transactions_view import TransactionsView
 from ledger.storage.cache import (
     load_cached_accounts,
     load_cached_transactions,
     save_accounts,
 )
+from ledger.summary import compute_summary
 
 
 class DashboardScreen(Screen):
@@ -20,6 +22,8 @@ class DashboardScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Header()
         with TabbedContent():
+            with TabPane("Summary", id="summary-tab"):
+                yield SummaryView(id="summary-view")
             with TabPane("Accounts", id="accounts-tab"):
                 yield AccountsView(id="accounts-table")
             with TabPane("Transactions", id="transactions-tab"):
@@ -43,6 +47,9 @@ class DashboardScreen(Screen):
         self.query_one("#paychecks-table", TransactionsView).populate(
             detect_paychecks(transactions, config)
         )
+
+        summary = compute_summary(accounts, transactions, config)
+        self.query_one("#summary-view", SummaryView).populate(summary)
 
     def action_refresh(self) -> None:
         """Triggered by pressing 'r'. Hits Plaid, updates the cache, re-renders."""

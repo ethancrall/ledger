@@ -108,6 +108,16 @@ class BudgetConfig:
     def categories_of_type(self, category_type: CategoryType) -> list[Category]:
         return [c for c in self.categories if c.type == category_type]
 
+    def category_type_or_none(self, name: str) -> CategoryType | None:
+        """Like category_type(), but returns None instead of raising for a
+        category not in config.yaml — e.g. Plaid's raw category strings on
+        transactions you haven't tagged with one of your own categories yet.
+        """
+        for cat in self.categories:
+            if cat.name == name:
+                return cat.type
+        return None
+
     def limits_for_year(self, tax_year: int) -> ContributionLimit | None:
         return next((l for l in self.contribution_limits if l.tax_year == tax_year), None)
 
