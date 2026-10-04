@@ -10,13 +10,14 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Literal
 
 import yaml
 
 from ledger.models.account import Account
+from ledger.models.transaction import Transaction
 
 CategoryType = Literal["spend", "offset", "income", "transfer"]
 AccountKind = Literal["bank", "cash", "credit", "prepaid", "loan", "investment"]
@@ -39,11 +40,6 @@ class ManualAccount:
     name: str
     kind: AccountKind
     starting_balance: float = 0.0
-    # Optional override — until manual accounts have their own transaction
-    # feed, this is how you keep the dashboard's number current: edit it
-    # in config.yaml whenever the real balance changes. Falls back to
-    # starting_balance if you never set it.
-    current_balance: float | None = None
     credit_limit: float | None = None
     interest_rate: float | None = None
     interest_starts: date | None = None
@@ -51,9 +47,18 @@ class ManualAccount:
     autopay_day: int | None = None
     annual_fee: float | None = None
 
-    @property
-    def effective_balance(self) -> float:
-        return self.current_balance if self.current_balance is not None else self.starting_balance
+
+@dataclass
+class ManualTransaction:
+    date: date
+    account: str            # must be a name in manual_accounts — the account charged
+    amount: float            # same convention as Plaid: positive = money out, negative = money in
+    category: str
+    note: str = ""
+    # Name of the account the money moved to, if this is a transfer. Can be
+    # another manual account (credited automatically) or a Plaid-tracked
+    # account (not credited here — Plaid's own sync already reflects it).
+    transfer_to: str | None = None
 
 
 @dataclass
@@ -86,6 +91,7 @@ class BudgetConfig:
     tracker_start_date: date
     categories: list[Category] = field(default_factory=list)
     manual_accounts: list[ManualAccount] = field(default_factory=list)
+    transactions: list[ManualTransaction] = field(default_factory=list)
     payroll: PayrollAssumptions = field(default_factory=PayrollAssumptions)
     forecast: ForecastAssumptions = field(default_factory=ForecastAssumptions)
     contribution_limits: list[ContributionLimit] = field(default_factory=list)
@@ -105,6 +111,23 @@ class BudgetConfig:
     def limits_for_year(self, tax_year: int) -> ContributionLimit | None:
         return next((l for l in self.contribution_limits if l.tax_year == tax_year), None)
 
+    def manual_account_balance(self, account_name: str) -> float:
+        """starting_balance, minus every transaction charged to this account,
+        plus every transfer this account received from another manual
+        account (via another account's transfer_to).
+        """
+        account = next((a for a in self.manual_accounts if a.name == account_name), None)
+        if account is None:
+            raise ConfigError(f"No manual account named '{account_name}' in config.yaml.")
+
+        balance = account.starting_balance
+        for t in self.transactions:
+            if t.account == account_name:
+                balance -= t.amount
+            if t.transfer_to == account_name:
+                balance += t.amount
+        return balance
+
     def manual_accounts_as_accounts(self) -> list[Account]:
         """Converts config.yaml's manual_accounts into the same Account
         shape Plaid accounts use, so both can populate one table.
@@ -115,11 +138,29 @@ class BudgetConfig:
                 name=ma.name,
                 official_name=ma.name,
                 account_type=ma.kind,
-                current_balance=ma.effective_balance,
+                current_balance=self.manual_account_balance(ma.name),
                 available_balance=None,
                 currency="USD",
             )
             for ma in self.manual_accounts
+        ]
+
+    def manual_transactions_as_transactions(self) -> list[Transaction]:
+        """Converts config.yaml's transactions into the same Transaction
+        shape Plaid transactions use, so both can populate one table:
+        Date -> date, Account -> institution, Note -> merchant,
+        Amount -> amount, Category -> category.
+        """
+        return [
+            Transaction(
+                transaction_id=f"manual-{idx}",
+                institution=t.account,
+                date=datetime.combine(t.date, datetime.min.time()),
+                merchant=t.note or t.category,
+                amount=t.amount,
+                category=t.category,
+            )
+            for idx, t in enumerate(self.transactions)
         ]
 
 
@@ -163,13 +204,39 @@ def load_budget_config(path: Path | None = None) -> BudgetConfig:
             name=entry["name"],
             kind=kind,
             starting_balance=entry.get("starting_balance", 0.0),
-            current_balance=entry.get("current_balance"),
             credit_limit=entry.get("credit_limit"),
             interest_rate=entry.get("interest_rate"),
             interest_starts=entry.get("interest_starts"),
             payoff_order=entry.get("payoff_order"),
             autopay_day=entry.get("autopay_day"),
             annual_fee=entry.get("annual_fee"),
+        ))
+
+    manual_account_names = {ma.name for ma in manual_accounts}
+
+    transactions = []
+    for entry in raw.get("transactions", []):
+        account = entry.get("account")
+        if account not in manual_account_names:
+            raise ConfigError(
+                f"Transaction dated {entry.get('date')} references unknown manual "
+                f"account '{account}'. Add it under `manual_accounts:` first."
+            )
+        category = entry.get("category")
+        if category not in seen_names:
+            raise ConfigError(
+                f"Transaction dated {entry.get('date')} references unknown category "
+                f"'{category}'. Add it under `categories:` first."
+            )
+        if "amount" not in entry:
+            raise ConfigError(f"Transaction dated {entry.get('date')} is missing 'amount'.")
+        transactions.append(ManualTransaction(
+            date=entry["date"],
+            account=account,
+            amount=entry["amount"],
+            category=category,
+            note=entry.get("note", ""),
+            transfer_to=entry.get("transfer_to"),
         ))
 
     payroll_raw = raw.get("payroll", {})
@@ -206,6 +273,7 @@ def load_budget_config(path: Path | None = None) -> BudgetConfig:
         tracker_start_date=raw["tracker_start_date"],
         categories=categories,
         manual_accounts=manual_accounts,
+        transactions=transactions,
         payroll=payroll,
         forecast=forecast,
         contribution_limits=contribution_limits,

@@ -46,30 +46,42 @@ manual_accounts:
   - name: Cash
     kind: cash
     starting_balance: 0
-    current_balance: 0
 
   - name: HSA
     kind: investment
     starting_balance: 0
-    current_balance: 0
 
   - name: Roth IRA
     kind: investment
     starting_balance: 0
-    current_balance: 0
 
   - name: Roth 401(k)
     kind: investment
     starting_balance: 0
-    current_balance: 0
 
   - name: Loan 1
     kind: loan
     starting_balance: -12000
-    current_balance: 0
     interest_rate: 0.0649
     interest_starts: 2026-01-01
     payoff_order: 1
+
+# Example transactions for manual accounts
+# Ledger displays these transactions on the dashboard and uses them to
+# calculate your current manual account balance
+transactions:
+  - date: 2026-09-20
+    account: Cash
+    amount: 15.00
+    category: Eating Out
+    note: Lunch with coworker
+
+  - date: 2026-09-25
+    account: Cash
+    amount: 50.00
+    category: Transfer
+    note: Moved to Roth IRA
+    transfer_to: Roth IRA
 
 payroll:
   deferral_rate_401k: 0.06

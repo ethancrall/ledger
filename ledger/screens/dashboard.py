@@ -37,7 +37,8 @@ class DashboardScreen(Screen):
         accounts = load_cached_accounts() + config.manual_accounts_as_accounts()
         self.query_one("#accounts-table", AccountsView).populate(accounts)
 
-        transactions = load_cached_transactions()
+        transactions = load_cached_transactions() + config.manual_transactions_as_transactions()
+        transactions.sort(key=lambda t: t.date, reverse=True)
         self.query_one("#transactions-table", TransactionsView).populate(transactions)
         self.query_one("#paychecks-table", TransactionsView).populate(
             detect_paychecks(transactions, config)
